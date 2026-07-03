@@ -1,0 +1,2143 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>正答率チェッカー v2</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #667eea;
+      --accent: #764ba2;
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --muted: #999;
+      --success: #28a745;
+      --danger: #dc3545;
+      --warn: #ff9800;
+    }
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: "Noto Sans JP", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      min-height: 100vh;
+      padding: 20px;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      background: var(--card);
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+    }
+    
+    header {
+      padding: 28px 30px;
+      color: #fff;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      text-align: center;
+    }
+    
+    header h1 {
+      font-size: 1.6rem;
+      margin-bottom: 6px;
+    }
+    
+    header p {
+      opacity: 0.95;
+      font-size: 0.95rem;
+    }
+    
+    .tabbar {
+      display: flex;
+      background: #f0f2f6;
+      border-bottom: 1px solid #e0e3eb;
+    }
+    
+    .tab-button {
+      flex: 1;
+      padding: 14px 18px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-weight: 600;
+      color: #444;
+      transition: all 0.3s ease;
+    }
+    
+    .tab-button:hover {
+      background: #fff;
+    }
+    
+    .tab-button.active {
+      color: var(--primary);
+      background: #fff;
+      border-bottom: 3px solid var(--primary);
+    }
+    
+    .content {
+      display: none;
+      padding: 22px 30px;
+    }
+    
+    .content.active {
+      display: block;
+    }
+    
+    .section {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid #e6e9ef;
+      margin-bottom: 20px;
+    }
+    
+    .section h2 {
+      font-size: 1rem;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    
+    .form-grid {
+      display: grid;
+      gap: 12px;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      margin-bottom: 14px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .form-group label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    
+    .form-group input[type="text"],
+    .form-group input[type="number"],
+    .form-group input[type="email"],
+    .form-group input[type="date"] {
+      padding: 8px 10px;
+      border: 1px solid #d7dbe6;
+      border-radius: 6px;
+      font-size: 0.9rem;
+    }
+    
+    .form-group input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+    
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+    }
+    
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    
+    .btn {
+      padding: 10px 16px;
+      border-radius: 6px;
+      border: none;
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
+    }
+    
+    .btn:hover {
+      opacity: 0.85;
+      transform: translateY(-2px);
+    }
+    
+    .btn-primary {
+      background: var(--primary);
+      color: #fff;
+    }
+    
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+    
+    .btn-warn {
+      background: var(--warn);
+      color: #fff;
+    }
+    
+    .btn-danger {
+      background: var(--danger);
+      color: #fff;
+    }
+    
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    
+    .stat-card {
+      flex: 1;
+      min-width: 140px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 16px;
+      border-radius: 10px;
+      text-align: center;
+    }
+    
+    .stat-card h3 {
+      font-size: 0.8rem;
+      opacity: 0.9;
+      margin-bottom: 8px;
+    }
+    
+    .stat-value {
+      font-size: 2rem;
+      font-weight: 800;
+    }
+    
+    .grid-area {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .grid-cell {
+      aspect-ratio: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      border-radius: 8px;
+      border: 2px solid #e6e9ef;
+      background: #fff;
+      cursor: pointer;
+      user-select: none;
+      transition: all 0.2s ease;
+      font-weight: 700;
+    }
+    
+    .grid-cell:hover {
+      transform: scale(1.05);
+    }
+    
+    .grid-cell.correct {
+      background: linear-gradient(180deg, #e8fff0, #daf7e0);
+      border-color: var(--success);
+      color: #155724;
+    }
+    
+    .grid-cell.wrong {
+      background: linear-gradient(180deg, #ffe8e8, #ffdada);
+      border-color: var(--danger);
+      color: #721c24;
+    }
+    
+    .grid-cell .num {
+      font-size: 1.1rem;
+    }
+    
+    .grid-cell .page {
+      font-size: 0.7rem;
+      margin-top: 4px;
+      opacity: 0.8;
+    }
+    
+    .list-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 10px;
+      border-bottom: 1px dashed #e6e9ef;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .list-item:last-child {
+      border-bottom: none;
+    }
+    
+    .list-item-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+      flex-shrink: 0;
+    }
+    
+    .list-item-content {
+      flex: 1;
+    }
+    
+    .list-item-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+    
+    .btn-transfer {
+      padding: 4px 8px;
+      font-size: 0.75rem;
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    
+    .btn-transfer:hover {
+      opacity: 0.8;
+    }
+    
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    
+    .modal.active {
+      display: flex;
+    }
+    
+    .modal-box {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 10px;
+      width: 90%;
+      max-width: 500px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+    
+    .modal-title {
+      font-weight: 800;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    
+    .modal-input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #d7dbe6;
+      border-radius: 6px;
+      margin-bottom: 16px;
+      font-size: 0.95rem;
+    }
+    
+    .modal-buttons {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+    }
+    
+    .empty-message {
+      color: var(--muted);
+      padding: 20px;
+      text-align: center;
+      font-style: italic;
+    }
+    
+    .folder-tree {
+      margin-bottom: 12px;
+    }
+    
+    .folder-item {
+      padding: 10px;
+      margin-bottom: 8px;
+      background: #fff;
+      border-radius: 6px;
+      border: 1px solid #e6e9ef;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .folder-item:hover {
+      background: #f0f0f0;
+    }
+    
+    .folder-item.active {
+      background: #e8f4ff;
+      border-color: var(--primary);
+    }
+    
+    .folder-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 700;
+    }
+    
+    .folder-toggle {
+      display: inline-block;
+      width: 20px;
+      text-align: center;
+    }
+    
+    .folder-children {
+      margin-left: 20px;
+      margin-top: 8px;
+      display: none;
+    }
+    
+    .folder-children.open {
+      display: block;
+    }
+    
+    .child-item {
+      padding: 8px;
+      margin-bottom: 6px;
+      background: #fafafa;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .child-item:hover {
+      background: #e8f4ff;
+    }
+    
+    .child-item.active {
+      background: #e8f4ff;
+      border-left: 3px solid var(--primary);
+      padding-left: 5px;
+    }
+    
+    .folder-actions {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+    
+    .btn-small {
+      padding: 6px 10px;
+      font-size: 0.8rem;
+    }
+    
+    .candidate-list {
+      background: #fff;
+      border: 1px solid #d7dbe6;
+      border-radius: 6px;
+      max-height: 200px;
+      overflow-y: auto;
+      margin-bottom: 12px;
+    }
+    
+    .candidate-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .candidate-item:hover {
+      background: #f0f0f0;
+    }
+    
+    .candidate-item:last-child {
+      border-bottom: none;
+    }
+    
+    .tab2-content-wrapper {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 16px;
+    }
+    
+    .tab2-records {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid #e6e9ef;
+      max-height: 600px;
+      overflow-y: auto;
+    }
+    
+    .tab2-records h3 {
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    
+    .record-item {
+      background: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 3px solid var(--primary);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    
+    .record-item:hover {
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .record-item.selected {
+      background: #e8f4ff;
+    }
+    
+    .record-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .record-meta {
+      font-size: 0.75rem;
+      color: #999;
+      margin-bottom: 4px;
+    }
+    
+    .record-rate {
+      font-size: 0.85rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+    
+    .record-details {
+      background: #f8f9fa;
+      padding: 16px;
+      border-radius: 10px;
+      border: 1px solid #e6e9ef;
+    }
+    
+    .record-details h3 {
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      color: #333;
+    }
+    
+    .detail-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      border-bottom: 1px dashed #e6e9ef;
+      font-size: 0.9rem;
+    }
+    
+    .detail-row:last-child {
+      border-bottom: none;
+    }
+    
+    .detail-label {
+      color: #666;
+    }
+    
+    .detail-value {
+      font-weight: 700;
+      color: #333;
+    }
+    
+    .schedule-form {
+      background: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      border: 1px solid #d7dbe6;
+      margin-top: 12px;
+    }
+    
+    .schedule-form label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: block;
+      margin-bottom: 6px;
+      color: #333;
+    }
+    
+    .schedule-form input[type="date"] {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid #d7dbe6;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+    }
+    
+    /* ========== 履歴振替表スタイル ========== */
+    .drag-assign-modal {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 10px;
+      width: 95%;
+      max-width: 1000px;
+      max-height: 80vh;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .drag-assign-header {
+      font-weight: 800;
+      margin-bottom: 16px;
+      color: #333;
+      font-size: 1.1rem;
+    }
+    
+    .drag-assign-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      flex: 1;
+      overflow: hidden;
+    }
+    
+    .drag-assign-panel {
+      display: flex;
+      flex-direction: column;
+      border: 2px solid #e6e9ef;
+      border-radius: 8px;
+      background: #f8f9fa;
+      overflow: hidden;
+    }
+    
+    .drag-assign-panel-header {
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      color: #fff;
+      padding: 12px;
+      font-weight: 700;
+      font-size: 0.95rem;
+    }
+    
+    .drag-assign-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 12px;
+    }
+    
+    .drag-item {
+      background: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid var(--primary);
+      cursor: move;
+      user-select: none;
+      transition: all 0.2s;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .drag-item:hover {
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transform: translateX(4px);
+    }
+    
+    .drag-item.dragging {
+      opacity: 0.5;
+    }
+    
+    .drag-item-content {
+      flex: 1;
+    }
+    
+    .drag-item-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .drag-item-meta {
+      font-size: 0.8rem;
+      color: #999;
+    }
+    
+    .drag-item-rate {
+      font-weight: 700;
+      color: var(--primary);
+      font-size: 0.95rem;
+      margin-left: 12px;
+    }
+    
+    .drag-drop-zone {
+      flex: 1;
+      border: 2px dashed #d7dbe6;
+      border-radius: 6px;
+      margin-top: 12px;
+      padding: 20px;
+      text-align: center;
+      color: #999;
+      font-style: italic;
+      background: #fff;
+      transition: all 0.3s;
+    }
+    
+    .drag-drop-zone.drag-over {
+      background: #e8f4ff;
+      border-color: var(--primary);
+      color: var(--primary);
+    }
+    
+    .folder-assign-item {
+      background: #fff;
+      padding: 12px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid var(--success);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    
+    .folder-assign-checkbox {
+      width: 20px;
+      height: 20px;
+      cursor: pointer;
+    }
+    
+    .folder-assign-name {
+      flex: 1;
+      font-weight: 700;
+      color: #333;
+    }
+    
+    .folder-assign-count {
+      font-size: 0.8rem;
+      color: #999;
+      background: #f0f0f0;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    
+    .spaced-items-list {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid #d7dbe6;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+      background: #fff;
+    }
+    
+    .spaced-item {
+      background: #f8f9fa;
+      padding: 10px;
+      border-radius: 6px;
+      margin-bottom: 8px;
+      border-left: 4px solid var(--warn);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .spaced-item-info {
+      flex: 1;
+    }
+    
+    .spaced-item-title {
+      font-weight: 700;
+      font-size: 0.9rem;
+      color: #333;
+      margin-bottom: 4px;
+    }
+    
+    .spaced-item-dates {
+      font-size: 0.8rem;
+      color: #666;
+    }
+    
+    .spaced-item-remove {
+      background: var(--danger);
+      color: #fff;
+      border: none;
+      padding: 4px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.75rem;
+    }
+    
+    .drag-assign-footer {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+      border-top: 1px solid #e6e9ef;
+      padding-top: 16px;
+    }
+    
+    .ebbinghaus-panel {
+      background: #fff;
+      border: 1px solid #d7dbe6;
+      border-radius: 6px;
+      padding: 12px;
+      margin-top: 12px;
+    }
+    
+    .ebbinghaus-title {
+      font-weight: 700;
+      color: #333;
+      margin-bottom: 8px;
+      font-size: 0.9rem;
+    }
+    
+    .ebbinghaus-dates {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 8px;
+    }
+    
+    .ebbinghaus-date-item {
+      background: #f8f9fa;
+      padding: 8px;
+      border-radius: 6px;
+      text-align: center;
+      border-left: 3px solid var(--primary);
+    }
+    
+    .ebbinghaus-date-day {
+      font-weight: 700;
+      color: #333;
+      font-size: 0.9rem;
+    }
+    
+    .ebbinghaus-date-value {
+      font-size: 0.8rem;
+      color: #999;
+      margin-top: 2px;
+    }
+    
+    @media (max-width: 768px) {
+      header h1 {
+        font-size: 1.3rem;
+      }
+      
+      .form-grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .button-group {
+        flex-direction: column;
+      }
+      
+      .btn {
+        width: 100%;
+      }
+      
+      .grid-area {
+        grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+      }
+      
+      .tab2-content-wrapper {
+        grid-template-columns: 1fr;
+      }
+      
+      .drag-assign-container {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>📊 正答率チェッカー v2</h1>
+      <p>完全修正版 — ドラッグ振替・忘却曲線・自動送信スケジュール対応</p>
+    </header>
+    
+    <div class="tabbar" role="tablist">
+      <button class="tab-button active" data-tab="tab1">📋 基本モード</button>
+      <button class="tab-button" data-tab="tab2">📁 フォルダ管理</button>
+    </div>
+    
+    <!-- TAB1 -->
+    <div class="content active" id="tab1">
+      <div class="section">
+        <h2>⚙️ 設定</h2>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="tab1-use-candidates" />
+              変換候補を表示
+            </label>
+          </div>
+          <div class="form-group">
+            <label>問題セット名</label>
+            <input type="text" id="tab1-title" value="問題セット" />
+            <div class="candidate-list" id="tab1-candidates" style="display:none;"></div>
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="tab1-use-count" checked />
+              問題数指定
+            </label>
+            <input type="number" id="tab1-count" min="1" value="30" />
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="tab1-use-pages" checked />
+              ページ管理
+            </label>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 6px;">
+              <input type="number" id="tab1-start" min="1" value="11" placeholder="開始ページ" />
+              <input type="number" id="tab1-end" min="1" value="25" placeholder="終了ページ" />
+            </div>
+          </div>
+          <div class="form-group">
+            <label>各ページの問題数</label>
+            <input type="number" id="tab1-per-page" min="1" value="2" />
+          </div>
+          <div class="form-group">
+            <label>ページ別設定（例: 11-15:4,16:3,20:5）</label>
+            <input type="text" id="tab1-custom" placeholder="11-15:4,16:3" />
+          </div>
+          <div class="form-group">
+            <label class="checkbox-label">
+              <input type="checkbox" id="tab1-skip-enable" />
+              飛ばすページ指定
+            </label>
+            <input type="text" id="tab1-skip" placeholder="例: 41-50,56" disabled />
+          </div>
+        </div>
+      </div>
+      
+      <div class="button-group">
+        <button class="btn btn-primary" id="tab1-apply">✅ 設定を反映</button>
+        <button class="btn btn-success" id="tab1-save">💾 結果を記録</button>
+        <button class="btn btn-warn" id="tab1-export">📥 エクスポート</button>
+        <button class="btn btn-danger" id="tab1-clear">🗑️ 全削除</button>
+      </div>
+      
+      <div class="stats-row">
+        <div class="stat-card">
+          <h3>全体正答率</h3>
+          <div class="stat-value" id="tab1-rate">-</div>
+        </div>
+        <div class="stat-card">
+          <h3>間違い数</h3>
+          <div class="stat-value" id="tab1-wrong">-</div>
+        </div>
+        <div class="stat-card">
+          <h3>問題数</h3>
+          <div class="stat-value" id="tab1-total">0</div>
+        </div>
+      </div>
+      
+      <div class="section">
+        <h2>🎯 採点グリッド</h2>
+        <div class="grid-area" id="tab1-grid"></div>
+      </div>
+      
+      <div class="section">
+        <h2>📊 成績推移</h2>
+        <canvas id="tab1-chart" height="80"></canvas>
+      </div>
+      
+      <div class="section">
+        <h2>📜 テスト履歴</h2>
+        <div class="button-group">
+          <button class="btn btn-primary" id="tab1-open-drag-assign">📤 履歴振替（ドラッグ&ドロップ）</button>
+        </div>
+        <div id="tab1-history"></div>
+      </div>
+    </div>
+    
+    <!-- TAB2 -->
+    <div class="content" id="tab2">
+      <div class="tab2-content-wrapper">
+        <div>
+          <div class="section" style="margin-bottom: 0;">
+            <h2>📁 フォルダ一覧</h2>
+            <div id="tab2-folders" class="folder-tree"></div>
+            <button class="btn btn-primary" id="tab2-add-folder" style="width: 100%; margin-top: 12px;">+ 新規フォルダ</button>
+          </div>
+        </div>
+        <div>
+          <div class="section">
+            <h2>⚙️ 設定</h2>
+            <div class="form-grid">
+              <div class="form-group">
+                <label>メールアドレス</label>
+                <input type="email" id="tab2-email" placeholder="example@gmail.com" />
+              </div>
+            </div>
+          </div>
+          
+          <div class="button-group">
+            <button class="btn btn-success" id="tab2-save">💾 設定を保存</button>
+          </div>
+          
+          <div class="tab2-records">
+            <h3>📋 格納済み記録</h3>
+            <div id="tab2-records-list"></div>
+          </div>
+          
+          <div class="record-details" style="margin-top: 20px;">
+            <h3>📊 記録詳細</h3>
+            <div id="tab2-record-detail">
+              <div class="empty-message">記録を選択してください</div>
+            </div>
+          </div>
+          
+          <div class="section" style="margin-top: 20px;">
+            <h2>📬 送信スケジュール</h2>
+            <div id="tab2-send-schedule"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <!-- MODAL -->
+  <div class="modal" id="modal">
+    <div class="modal-box">
+      <div class="modal-title" id="modal-title"></div>
+      <input type="text" class="modal-input" id="modal-input" />
+      <div class="modal-buttons">
+        <button class="btn btn-primary" id="modal-ok">OK</button>
+        <button class="btn" id="modal-cancel" style="background: #e6e9ef; color: #333;">キャンセル</button>
+      </div>
+    </div>
+  </div>
+  
+  <!-- ドラッグ振替モーダル -->
+  <div class="modal" id="drag-assign-modal">
+    <div class="drag-assign-modal">
+      <div class="drag-assign-header">📤 履歴振替 — ドラッグ&ドロップでフォルダに割り振ります</div>
+      
+      <div class="drag-assign-container">
+        <!-- 左パネル：テスト履歴 -->
+        <div class="drag-assign-panel">
+          <div class="drag-assign-panel-header">📜 テスト履歴</div>
+          <div class="drag-assign-list" id="drag-history-list"></div>
+        </div>
+        
+        <!-- 右パネル：フォルダ選択＋スペース学習 -->
+        <div style="display: flex; flex-direction: column;">
+          <div class="drag-assign-panel">
+            <div class="drag-assign-panel-header">📁 フォルダ一覧（ドロップ先）</div>
+            <div class="drag-assign-list" id="drag-folder-list"></div>
+          </div>
+          
+          <div style="margin-top: 16px;">
+            <div class="ebbinghaus-panel">
+              <div class="ebbinghaus-title">🧠 忘却曲線スケジュール</div>
+              <label class="checkbox-label" style="margin-bottom: 8px;">
+                <input type="checkbox" id="ebbinghaus-auto" />
+                自動登録（スペース学習）
+              </label>
+              <div class="ebbinghaus-dates" id="ebbinghaus-preview"></div>
+            </div>
+            
+            <div style="margin-top: 12px;">
+              <h4 style="font-size: 0.9rem; font-weight: 700; margin-bottom: 8px;">📬 送信スケジュール（統合済み）</h4>
+              <div class="spaced-items-list" id="spaced-items-container"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="drag-assign-footer">
+        <button class="btn btn-primary" id="drag-assign-ok">✅ 完了</button>
+        <button class="btn" id="drag-assign-cancel" style="background: #e6e9ef; color: #333;">❌ キャンセル</button>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    "use strict";
+    
+    const STORAGE_KEY = "seitou-checker-v2-data";
+    const EBBINGHAUS_DAYS = [1, 7, 16, 35, 62];
+    
+    let state = {
+      tab1: {
+        title: "問題セット",
+        gridData: [],
+        marks: {},
+        history: []
+      },
+      tab2: {
+        folders: [
+          { id: 1, name: "数学", children: [{ id: 11, name: "第1章", records: [] }, { id: 12, name: "第2章", records: [] }], records: [] },
+          { id: 2, name: "英語", children: [], records: [] }
+        ],
+        email: "",
+        schedules: {}
+      }
+    };
+    
+    let chart = null;
+    let selectedFolderId = null;
+    let selectedRecordId = null;
+    let currentFolderId = null;
+    let draggedRecord = null;
+    let spacedItems = new Map();
+    
+    // ============ Storage ============
+    function saveState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+      } catch (e) {
+        console.warn("Save failed:", e);
+      }
+    }
+    
+    function loadState() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          state = { ...state, ...parsed };
+        }
+      } catch (e) {
+        console.warn("Load failed:", e);
+      }
+    }
+    
+    // ============ Parser ============
+    function parseCustomPages(str) {
+      const result = {};
+      if (!str) return result;
+      
+      str.split(",").forEach((part) => {
+        const [range, count] = part.trim().split(":").map((s) => s.trim());
+        if (!range || !count) return;
+        
+        const num = parseInt(count, 10);
+        if (isNaN(num)) return;
+        
+        if (range.includes("-")) {
+          const [start, end] = range.split("-").map((x) => parseInt(x, 10));
+          if (!isNaN(start) && !isNaN(end)) {
+            for (let p = Math.min(start, end); p <= Math.max(start, end); p++) {
+              result[p] = num;
+            }
+          }
+        } else {
+          const p = parseInt(range, 10);
+          if (!isNaN(p)) result[p] = num;
+        }
+      });
+      
+      return result;
+    }
+    
+    function parseSkipPages(str) {
+      const set = new Set();
+      if (!str) return set;
+      
+      str.split(",").forEach((part) => {
+        part = part.trim();
+        if (!part) return;
+        
+        if (part.includes("-")) {
+          const [start, end] = part.split("-").map((x) => parseInt(x, 10));
+          if (!isNaN(start) && !isNaN(end)) {
+            for (let p = Math.min(start, end); p <= Math.max(start, end); p++) {
+              set.add(p);
+            }
+          }
+        } else {
+          const p = parseInt(part, 10);
+          if (!isNaN(p)) set.add(p);
+        }
+      });
+      
+      return set;
+    }
+    
+    // ============ Ebbinghaus（忘却曲線）============
+    function calculateEbbinghausDates(baseDate) {
+      const base = new Date(baseDate);
+      const dates = [];
+      
+      EBBINGHAUS_DAYS.forEach((days) => {
+        const d = new Date(base);
+        d.setDate(d.getDate() + days);
+        dates.push({
+          day: days,
+          date: d.toISOString().split('T')[0]
+        });
+      });
+      
+      return dates;
+    }
+    
+    function formatDate(dateStr) {
+      const d = new Date(dateStr + 'T00:00:00');
+      return d.toLocaleDateString('ja-JP', { month: 'short', day: 'numeric' });
+    }
+    
+    // ============ Grid Generation ============
+    function generateGrid(config) {
+      const grid = [];
+      const customPages = parseCustomPages(config.custom || "");
+      const skipPages = parseSkipPages(config.skip || "");
+      
+      let questionNum = 1;
+      
+      if (config.usePages) {
+        for (let p = config.start; p <= config.end; p++) {
+          if (skipPages.has(p)) continue;
+          
+          const qPerPage = customPages[p] || config.perPage;
+          for (let i = 0; i < qPerPage; i++) {
+            grid.push({
+              id: grid.length,
+              number: questionNum++,
+              page: p
+            });
+            
+            if (config.useCount && grid.length >= config.count) break;
+          }
+          
+          if (config.useCount && grid.length >= config.count) break;
+        }
+      } else {
+        for (let i = 1; i <= config.count; i++) {
+          grid.push({
+            id: grid.length,
+            number: i,
+            page: "-"
+          });
+        }
+      }
+      
+      return grid;
+    }
+    
+    // ============ Rendering ============
+    function renderGrid(domId, gridData, marks, onUpdate) {
+      const container = document.getElementById(domId);
+      container.innerHTML = "";
+      
+      if (!gridData || gridData.length === 0) {
+        container.innerHTML = '<div class="empty-message">グリッドが空です。設定を反映してください。</div>';
+        return;
+      }
+      
+      gridData.forEach((item) => {
+        const cell = document.createElement("div");
+        cell.className = "grid-cell " + (marks[item.id] ? "wrong" : "correct");
+        cell.dataset.id = item.id;
+        cell.innerHTML = `
+          <div class="num">${item.number}</div>
+          <div class="page">p${item.page}</div>
+        `;
+        
+        cell.addEventListener("click", () => {
+          if (marks[item.id]) {
+            delete marks[item.id];
+            cell.classList.remove("wrong");
+            cell.classList.add("correct");
+          } else {
+            marks[item.id] = true;
+            cell.classList.remove("correct");
+            cell.classList.add("wrong");
+          }
+          onUpdate && onUpdate();
+          saveState();
+        });
+        
+        container.appendChild(cell);
+      });
+    }
+    
+    function renderTab1() {
+      const data = state.tab1.gridData;
+      const marks = state.tab1.marks;
+      
+      renderGrid("tab1-grid", data, marks, updateTab1Stats);
+      updateTab1Stats();
+      renderTab1History();
+      updateChart();
+    }
+    
+    function updateTab1Stats() {
+      const total = state.tab1.gridData.length;
+      const wrong = Object.keys(state.tab1.marks).length;
+      const rate = total > 0 ? ((total - wrong) / total * 100).toFixed(1) : 0;
+      
+      document.getElementById("tab1-rate").textContent = total > 0 ? rate + "%" : "-";
+      document.getElementById("tab1-wrong").textContent = wrong;
+      document.getElementById("tab1-total").textContent = total;
+    }
+    
+    function renderTab1History() {
+      const box = document.getElementById("tab1-history");
+      const history = state.tab1.history;
+      
+      if (history.length === 0) {
+        box.innerHTML = '<div class="empty-message">履歴はありません</div>';
+        return;
+      }
+      
+      box.innerHTML = "";
+      [...history].reverse().forEach((record, idx) => {
+        const item = document.createElement("div");
+        item.className = "list-item";
+        
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.className = "list-item-checkbox";
+        checkbox.dataset.idx = idx;
+        
+        const content = document.createElement("div");
+        content.className = "list-item-content";
+        content.innerHTML = `
+          <div style="font-weight: 700;">${record.title}</div>
+          <div style="font-size: 0.85rem; color: #666;">${record.date}</div>
+        `;
+        
+        const rate = document.createElement("div");
+        rate.style.fontWeight = "800";
+        rate.style.color = "var(--primary)";
+        rate.textContent = record.rate + "%";
+        
+        item.appendChild(checkbox);
+        item.appendChild(content);
+        item.appendChild(rate);
+        box.appendChild(item);
+      });
+      
+      updateCandidates();
+    }
+    
+    function updateCandidates() {
+      const candidateList = document.getElementById("tab1-candidates");
+      const checked = document.querySelectorAll("#tab1-history .list-item-checkbox:checked");
+      
+      if (checked.length === 0) {
+        candidateList.style.display = "none";
+        return;
+      }
+      
+      const candidates = [];
+      state.tab1.history.forEach((record) => {
+        if (record.title && !candidates.includes(record.title)) {
+          candidates.push(record.title);
+        }
+      });
+      
+      candidateList.innerHTML = "";
+      candidates.forEach((candidate) => {
+        const div = document.createElement("div");
+        div.className = "candidate-item";
+        div.textContent = candidate;
+        div.addEventListener("click", () => {
+          document.getElementById("tab1-title").value = candidate;
+          candidateList.style.display = "none";
+          document.getElementById("tab1-use-candidates").checked = false;
+        });
+        candidateList.appendChild(div);
+      });
+      
+      candidateList.style.display = "block";
+    }
+    
+    function renderTab2Folders() {
+      const container = document.getElementById("tab2-folders");
+      container.innerHTML = "";
+      
+      state.tab2.folders.forEach((folder) => {
+        const folderDiv = document.createElement("div");
+        folderDiv.className = "folder-item";
+        if (currentFolderId === folder.id) folderDiv.classList.add("active");
+        
+        const headerDiv = document.createElement("div");
+        headerDiv.className = "folder-header";
+        
+        const toggleSpan = document.createElement("span");
+        toggleSpan.className = "folder-toggle";
+        toggleSpan.textContent = folder.children.length > 0 ? "▼" : "-";
+        
+        const nameSpan = document.createElement("span");
+        nameSpan.textContent = "📁 " + folder.name;
+        
+        headerDiv.appendChild(toggleSpan);
+        headerDiv.appendChild(nameSpan);
+        
+        const childrenDiv = document.createElement("div");
+        childrenDiv.className = "folder-children";
+        if (folder.children.length > 0) {
+          childrenDiv.classList.add("open");
+        }
+        
+        folder.children.forEach((child) => {
+          const childDiv = document.createElement("div");
+          childDiv.className = "child-item";
+          if (currentFolderId === child.id) childDiv.classList.add("active");
+          childDiv.innerHTML = `📄 ${child.name} <span style="font-size:0.8rem; color:#999;">(${child.records ? child.records.length : 0}件)</span>`;
+          childDiv.addEventListener("click", (e) => {
+            e.stopPropagation();
+            selectFolder(child.id, child.records || []);
+            renderTab2Folders();
+            renderTab2Records();
+          });
+          childrenDiv.appendChild(childDiv);
+        });
+        
+        headerDiv.addEventListener("click", () => {
+          selectFolder(folder.id, folder.records || []);
+          if (folder.children.length > 0) {
+            childrenDiv.classList.toggle("open");
+            toggleSpan.textContent = childrenDiv.classList.contains("open") ? "▼" : "▶";
+          }
+          renderTab2Folders();
+          renderTab2Records();
+        });
+        
+        folderDiv.appendChild(headerDiv);
+        folderDiv.appendChild(childrenDiv);
+        
+        const actionsDiv = document.createElement("div");
+        actionsDiv.className = "folder-actions";
+        
+        const addChildBtn = document.createElement("button");
+        addChildBtn.className = "btn btn-primary btn-small";
+        addChildBtn.textContent = "+ 追加";
+        addChildBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          showModal("サブフォルダ名", "フォルダ名を入力", (name) => {
+            if (!name) return;
+            folder.children.push({
+              id: Date.now(),
+              name,
+              records: []
+            });
+            saveState();
+            renderTab2Folders();
+          });
+        });
+        
+        actionsDiv.appendChild(addChildBtn);
+        folderDiv.appendChild(actionsDiv);
+        
+        container.appendChild(folderDiv);
+      });
+    }
+    
+    function selectFolder(folderId, records) {
+      currentFolderId = folderId;
+      selectedRecordId = null;
+    }
+    
+    function renderTab2Records() {
+      const container = document.getElementById("tab2-records-list");
+      container.innerHTML = "";
+      
+      if (!currentFolderId) {
+        container.innerHTML = '<div class="empty-message">フォルダを選択してください</div>';
+        return;
+      }
+      
+      let records = [];
+      const findRecords = (folders) => {
+        for (const folder of folders) {
+          if (folder.id === currentFolderId) {
+            records = folder.records || [];
+            return;
+          }
+          if (folder.children) {
+            for (const child of folder.children) {
+              if (child.id === currentFolderId) {
+                records = child.records || [];
+                return;
+              }
+            }
+          }
+        }
+      };
+      
+      findRecords(state.tab2.folders);
+      
+      if (records.length === 0) {
+        container.innerHTML = '<div class="empty-message">記録がありません</div>';
+        return;
+      }
+      
+      records.forEach((record, idx) => {
+        const item = document.createElement("div");
+        item.className = "record-item";
+        if (selectedRecordId === idx) item.classList.add("selected");
+        item.innerHTML = `
+          <div class="record-title">${record.title}</div>
+          <div class="record-meta">${record.date}</div>
+          <div class="record-rate">${record.rate}%</div>
+        `;
+        item.addEventListener("click", () => {
+          selectedRecordId = idx;
+          renderTab2Records();
+          renderTab2RecordDetail(record);
+        });
+        container.appendChild(item);
+      });
+    }
+    
+    function renderTab2RecordDetail(record) {
+      const container = document.getElementById("tab2-record-detail");
+      container.innerHTML = `
+        <div class="detail-row">
+          <span class="detail-label">📝 問題セット</span>
+          <span class="detail-value">${record.title}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">📅 記録日</span>
+          <span class="detail-value">${record.date}</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">📊 正答率</span>
+          <span class="detail-value">${record.rate}%</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">❌ 間違い数</span>
+          <span class="detail-value">${record.wrong}問</span>
+        </div>
+        <div class="detail-row">
+          <span class="detail-label">📋 問題数</span>
+          <span class="detail-value">${record.total}問</span>
+        </div>
+      `;
+    }
+    
+    function renderTab2SendSchedule() {
+      const container = document.getElementById("tab2-send-schedule");
+      
+      if (spacedItems.size === 0) {
+        container.innerHTML = '<div class="empty-message">スケジュールがありません</div>';
+        return;
+      }
+      
+      container.innerHTML = "";
+      
+      const grouped = {};
+      spacedItems.forEach((item) => {
+        if (!grouped[item.date]) {
+          grouped[item.date] = [];
+        }
+        grouped[item.date].push(item);
+      });
+      
+      const sortedDates = Object.keys(grouped).sort();
+      
+      sortedDates.forEach((date) => {
+        const dateDiv = document.createElement("div");
+        dateDiv.style.marginBottom = "16px";
+        
+        const dateHeader = document.createElement("div");
+        dateHeader.style.fontWeight = "700";
+        dateHeader.style.color = "#333";
+        dateHeader.style.marginBottom = "8px";
+        dateHeader.textContent = "📅 " + formatDate(date);
+        
+        const itemsDiv = document.createElement("div");
+        itemsDiv.style.display = "grid";
+        itemsDiv.style.gap = "8px";
+        
+        grouped[date].forEach((item) => {
+          const itemEl = document.createElement("div");
+          itemEl.style.background = "#f8f9fa";
+          itemEl.style.padding = "10px";
+          itemEl.style.borderRadius = "6px";
+          itemEl.style.borderLeft = "3px solid var(--primary)";
+          itemEl.textContent = `${item.title} (${item.rate}%)`;
+          itemsDiv.appendChild(itemEl);
+        });
+        
+        dateDiv.appendChild(dateHeader);
+        dateDiv.appendChild(itemsDiv);
+        container.appendChild(dateDiv);
+      });
+    }
+    
+    function updateChart() {
+      const canvas = document.getElementById("tab1-chart");
+      if (!canvas) return;
+      
+      const history = state.tab1.history;
+      const labels = history.map((h) => h.date);
+      const data = history.map((h) => Number(h.rate) || 0);
+      
+      if (!chart) {
+        chart = new Chart(canvas, {
+          type: "line",
+          data: {
+            labels,
+            datasets: [
+              {
+                label: "正答率 (%)",
+                data,
+                borderColor: "var(--primary)",
+                backgroundColor: "rgba(102, 126, 234, 0.1)",
+                borderWidth: 2,
+                tension: 0.4,
+                fill: true
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+              legend: { display: false }
+            },
+            scales: {
+              y: {
+                beginAtZero: true,
+                max: 100
+              }
+            }
+          }
+        });
+      } else {
+        chart.data.labels = labels;
+        chart.data.datasets[0].data = data;
+        chart.update();
+      }
+    }
+    
+    // ============ ドラッグ振替 ============
+    function openDragAssignModal() {
+      spacedItems.clear();
+      const modal = document.getElementById("drag-assign-modal");
+      
+      // 左パネル：履歴リスト
+      const historyList = document.getElementById("drag-history-list");
+      historyList.innerHTML = "";
+      
+      state.tab1.history.forEach((record, idx) => {
+        const item = document.createElement("div");
+        item.className = "drag-item";
+        item.draggable = true;
+        item.dataset.idx = idx;
+        
+        item.innerHTML = `
+          <div class="drag-item-content">
+            <div class="drag-item-title">${record.title}</div>
+            <div class="drag-item-meta">${record.date}</div>
+          </div>
+          <div class="drag-item-rate">${record.rate}%</div>
+        `;
+        
+        item.addEventListener("dragstart", (e) => {
+          draggedRecord = record;
+          item.classList.add("dragging");
+          e.dataTransfer.effectAllowed = "copy";
+        });
+        
+        item.addEventListener("dragend", (e) => {
+          item.classList.remove("dragging");
+        });
+        
+        historyList.appendChild(item);
+      });
+      
+      // 右パネル：フォルダリスト
+      const folderList = document.getElementById("drag-folder-list");
+      folderList.innerHTML = "";
+      
+      state.tab2.folders.forEach((folder) => {
+        renderFolderItemForDrag(folderList, folder, null);
+      });
+      
+      // スペース学習プレビュー
+      renderEbbinghausPreview();
+      
+      modal.classList.add("active");
+    }
+    
+    function renderFolderItemForDrag(container, folder, parentCheckbox) {
+      const folderDiv = document.createElement("div");
+      folderDiv.className = "folder-assign-item";
+      
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.className = "folder-assign-checkbox";
+      checkbox.dataset.folderId = folder.id;
+      
+      const name = document.createElement("div");
+      name.className = "folder-assign-name";
+      name.textContent = "📁 " + folder.name;
+      
+      const count = document.createElement("div");
+      count.className = "folder-assign-count";
+      count.textContent = (folder.records ? folder.records.length : 0) + "件";
+      
+      folderDiv.appendChild(checkbox);
+      folderDiv.appendChild(name);
+      folderDiv.appendChild(count);
+      
+      // ドラッグオーバー効果
+      folderDiv.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        folderDiv.style.background = "#e8f4ff";
+        folderDiv.style.borderColor = "var(--primary)";
+      });
+      
+      folderDiv.addEventListener("dragleave", () => {
+        folderDiv.style.background = "#fff";
+        folderDiv.style.borderColor = "var(--success)";
+      });
+      
+      folderDiv.addEventListener("drop", (e) => {
+        e.preventDefault();
+        if (draggedRecord) {
+          checkbox.checked = true;
+          addSpacedItem(draggedRecord, folder.id);
+          renderSpacedItemsList();
+          renderEbbinghausPreview();
+        }
+        folderDiv.style.background = "#fff";
+        folderDiv.style.borderColor = "var(--success)";
+      });
+      
+      container.appendChild(folderDiv);
+      
+      // サブフォルダ
+      if (folder.children && folder.children.length > 0) {
+        folder.children.forEach((child) => {
+          const childDiv = document.createElement("div");
+          childDiv.style.marginLeft = "20px";
+          childDiv.style.marginTop = "8px";
+          
+          const childFolderDiv = document.createElement("div");
+          childFolderDiv.className = "folder-assign-item";
+          
+          const childCheckbox = document.createElement("input");
+          childCheckbox.type = "checkbox";
+          childCheckbox.className = "folder-assign-checkbox";
+          childCheckbox.dataset.folderId = child.id;
+          
+          const childName = document.createElement("div");
+          childName.className = "folder-assign-name";
+          childName.textContent = "📄 " + child.name;
+          
+          const childCount = document.createElement("div");
+          childCount.className = "folder-assign-count";
+          childCount.textContent = (child.records ? child.records.length : 0) + "件";
+          
+          childFolderDiv.appendChild(childCheckbox);
+          childFolderDiv.appendChild(childName);
+          childFolderDiv.appendChild(childCount);
+          
+          childFolderDiv.addEventListener("dragover", (e) => {
+            e.preventDefault();
+            childFolderDiv.style.background = "#e8f4ff";
+          });
+          
+          childFolderDiv.addEventListener("dragleave", () => {
+            childFolderDiv.style.background = "#fff";
+          });
+          
+          childFolderDiv.addEventListener("drop", (e) => {
+            e.preventDefault();
+            if (draggedRecord) {
+              childCheckbox.checked = true;
+              addSpacedItem(draggedRecord, child.id);
+              renderSpacedItemsList();
+              renderEbbinghausPreview();
+            }
+            childFolderDiv.style.background = "#fff";
+          });
+          
+          childDiv.appendChild(childFolderDiv);
+          container.appendChild(childDiv);
+        });
+      }
+    }
+    
+    function addSpacedItem(record, folderId) {
+      const baseDate = record.date.split(' ')[0];
+      const dates = calculateEbbinghausDates(baseDate);
+      
+      dates.forEach((d) => {
+        const key = d.date + "_" + record.title;
+        spacedItems.set(key, {
+          title: record.title,
+          rate: record.rate,
+          date: d.date,
+          day: d.day,
+          folderId: folderId
+        });
+      });
+    }
+    
+    function renderSpacedItemsList() {
+      const container = document.getElementById("spaced-items-container");
+      container.innerHTML = "";
+      
+      if (spacedItems.size === 0) {
+        container.innerHTML = '<div class="empty-message">アイテムがありません</div>';
+        return;
+      }
+      
+      const grouped = {};
+      spacedItems.forEach((item) => {
+        if (!grouped[item.date]) {
+          grouped[item.date] = [];
+        }
+        grouped[item.date].push(item);
+      });
+      
+      const sortedDates = Object.keys(grouped).sort();
+      
+      sortedDates.forEach((date) => {
+        grouped[date].forEach((item) => {
+          const itemDiv = document.createElement("div");
+          itemDiv.className = "spaced-item";
+          
+          const infoDiv = document.createElement("div");
+          infoDiv.className = "spaced-item-info";
+          
+          const titleDiv = document.createElement("div");
+          titleDiv.className = "spaced-item-title";
+          titleDiv.textContent = item.title;
+          
+          const datesDiv = document.createElement("div");
+          datesDiv.className = "spaced-item-dates";
+          datesDiv.textContent = `${formatDate(date)} (${item.day}日目) - ${item.rate}%`;
+          
+          infoDiv.appendChild(titleDiv);
+          infoDiv.appendChild(datesDiv);
+          
+          const removeBtn = document.createElement("button");
+          removeBtn.className = "spaced-item-remove";
+          removeBtn.textContent = "削除";
+          removeBtn.addEventListener("click", () => {
+            const keys = [];
+            spacedItems.forEach((v, k) => {
+              if (v.date === date && v.title === item.title) {
+                keys.push(k);
+              }
+            });
+            keys.forEach(k => spacedItems.delete(k));
+            renderSpacedItemsList();
+            renderEbbinghausPreview();
+          });
+          
+          itemDiv.appendChild(infoDiv);
+          itemDiv.appendChild(removeBtn);
+          container.appendChild(itemDiv);
+        });
+      });
+    }
+    
+    function renderEbbinghausPreview() {
+      const container = document.getElementById("ebbinghaus-preview");
+      container.innerHTML = "";
+      
+      const checkbox = document.getElementById("ebbinghaus-auto");
+      if (!checkbox.checked || spacedItems.size === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #999; font-style: italic; padding: 20px;">選択されたアイテムのスケジュール</div>';
+        return;
+      }
+      
+      const grouped = {};
+      spacedItems.forEach((item) => {
+        if (!grouped[item.date]) {
+          grouped[item.date] = 0;
+        }
+        grouped[item.date]++;
+      });
+      
+      const sortedDates = Object.keys(grouped).sort();
+      
+      sortedDates.forEach((date) => {
+        const dateDiv = document.createElement("div");
+        dateDiv.className = "ebbinghaus-date-item";
+        
+        const daySpan = document.createElement("div");
+        daySpan.className = "ebbinghaus-date-day";
+        daySpan.textContent = formatDate(date);
+        
+        const countSpan = document.createElement("div");
+        countSpan.className = "ebbinghaus-date-value";
+        countSpan.textContent = grouped[date] + "件";
+        
+        dateDiv.appendChild(daySpan);
+        dateDiv.appendChild(countSpan);
+        container.appendChild(dateDiv);
+      });
+    }
+    
+    // ============ Actions ============
+    function applyTab1() {
+      if (!confirm("現在の採点結果を消して新しく生成しますか？")) return;
+      
+      const config = {
+        useCount: document.getElementById("tab1-use-count").checked,
+        usePages: document.getElementById("tab1-use-pages").checked,
+        count: parseInt(document.getElementById("tab1-count").value, 10) || 30,
+        start: parseInt(document.getElementById("tab1-start").value, 10) || 1,
+        end: parseInt(document.getElementById("tab1-end").value, 10) || 1,
+        perPage: parseInt(document.getElementById("tab1-per-page").value, 10) || 1,
+        custom: document.getElementById("tab1-custom").value.trim(),
+        skip: document.getElementById("tab1-skip-enable").checked
+          ? document.getElementById("tab1-skip").value.trim()
+          : ""
+      };
+      
+      state.tab1.title = document.getElementById("tab1-title").value || state.tab1.title;
+      state.tab1.gridData = generateGrid(config);
+      state.tab1.marks = {};
+      saveState();
+      renderTab1();
+    }
+    
+    function saveTab1Result() {
+      const title = document.getElementById("tab1-title").value || "無題";
+      const total = state.tab1.gridData.length;
+      const wrong = Object.keys(state.tab1.marks).length;
+      const rate = total > 0 ? ((total - wrong) / total * 100).toFixed(1) : 0;
+      
+      const record = {
+        date: new Date().toLocaleString("ja-JP"),
+        title,
+        total,
+        wrong,
+        rate: Number(rate)
+      };
+      
+      state.tab1.history.push(record);
+      saveState();
+      renderTab1History();
+      updateChart();
+      alert(`✅ 記録しました: ${rate}%`);
+    }
+    
+    function clearTab1() {
+      if (!confirm("📜 全データを削除しますか？")) return;
+      state.tab1.history = [];
+      state.tab1.marks = {};
+      state.tab1.gridData = [];
+      saveState();
+      renderTab1();
+      alert("✅ 削除しました");
+    }
+    
+    function exportTab1Data() {
+      const data = JSON.stringify(state.tab1.history, null, 2);
+      const blob = new Blob([data], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "seitou-history-" + new Date().getTime() + ".json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+    
+    function saveTab2Result() {
+      const email = document.getElementById("tab2-email").value.trim();
+      if (!email) {
+        alert("📧 メールアドレスを入力してください");
+        return;
+      }
+      
+      state.tab2.email = email;
+      saveState();
+      alert("✅ メールアドレスを保存しました");
+    }
+    
+    function addFolder() {
+      showModal("新規フォルダ名", "フォルダ名を入力", (name) => {
+        if (!name) return;
+        state.tab2.folders.push({
+          id: Date.now(),
+          name,
+          children: [],
+          records: []
+        });
+        saveState();
+        renderTab2Folders();
+      });
+    }
+    
+    // ============ Modal ============
+    function showModal(title, placeholder, callback) {
+      const modal = document.getElementById("modal");
+      document.getElementById("modal-title").textContent = title;
+      const input = document.getElementById("modal-input");
+      input.value = "";
+      input.placeholder = placeholder;
+      modal.classList.add("active");
+      input.focus();
+      
+      const ok = document.getElementById("modal-ok");
+      const cancel = document.getElementById("modal-cancel");
+      
+      const onOk = () => {
+        const value = input.value.trim();
+        cleanup();
+        callback && callback(value);
+      };
+      
+      const onCancel = () => {
+        cleanup();
+      };
+      
+      const cleanup = () => {
+        ok.removeEventListener("click", onOk);
+        cancel.removeEventListener("click", onCancel);
+        input.removeEventListener("keydown", onKeyDown);
+        modal.classList.remove("active");
+      };
+      
+      const onKeyDown = (e) => {
+        if (e.key === "Enter") onOk();
+        if (e.key === "Escape") onCancel();
+      };
+      
+      ok.addEventListener("click", onOk);
+      cancel.addEventListener("click", onCancel);
+      input.addEventListener("keydown", onKeyDown);
+    }
+    
+    // ============ Init ============
+    function init() {
+      loadState();
+      
+      // Tab switching
+      document.querySelectorAll(".tab-button").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const tabId = btn.dataset.tab;
+          
+          document.querySelectorAll(".tab-button").forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+          
+          document.querySelectorAll(".content").forEach((c) => c.classList.remove("active"));
+          document.getElementById(tabId).classList.add("active");
+          
+          if (tabId === "tab2") {
+            renderTab2SendSchedule();
+          }
+        });
+      });
+      
+      // Tab1 events
+      document.getElementById("tab1-apply").addEventListener("click", applyTab1);
+      document.getElementById("tab1-save").addEventListener("click", saveTab1Result);
+      document.getElementById("tab1-clear").addEventListener("click", clearTab1);
+      document.getElementById("tab1-export").addEventListener("click", exportTab1Data);
+      
+      document.getElementById("tab1-open-drag-assign").addEventListener("click", openDragAssignModal);
+      
+      document.getElementById("tab1-use-candidates").addEventListener("change", () => {
+        updateCandidates();
+      });
+      
+      const skipCheckbox = document.getElementById("tab1-skip-enable");
+      skipCheckbox.addEventListener("change", () => {
+        document.getElementById("tab1-skip").disabled = !skipCheckbox.checked;
+      });
+      
+      // ドラッグ振替モーダルイベント
+      document.getElementById("drag-assign-ok").addEventListener("click", () => {
+        // スペース学習が有効な場合、フォルダに自動追加
+        const autoSwitch = document.getElementById("ebbinghaus-auto").checked;
+        
+        if (autoSwitch && spacedItems.size > 0) {
+          spacedItems.forEach((item) => {
+            const findAndStore = (folders, folderId) => {
+              for (const folder of folders) {
+                if (folder.id === folderId) {
+                  if (!folder.records) folder.records = [];
+                  if (!folder.records.find(r => r.date === item.date && r.title === item.title)) {
+                    folder.records.push({
+                      date: item.date,
+                      title: item.title,
+                      rate: item.rate,
+                      total: 0,
+                      wrong: 0,
+                      sendDate: item.date
+                    });
+                  }
+                  return;
+                }
+                if (folder.children) {
+                  for (const child of folder.children) {
+                    if (child.id === folderId) {
+                      if (!child.records) child.records = [];
+                      if (!child.records.find(r => r.date === item.date && r.title === item.title)) {
+                        child.records.push({
+                          date: item.date,
+                          title: item.title,
+                          rate: item.rate,
+                          total: 0,
+                          wrong: 0,
+                          sendDate: item.date
+                        });
+                      }
+                      return;
+                    }
+                  }
+                }
+              }
+            };
+            
+            findAndStore(state.tab2.folders, item.folderId);
+          });
+          
+          saveState();
+          renderTab2Folders();
+          renderTab2Records();
+          renderTab2SendSchedule();
+          alert(`✅ ${spacedItems.size}件をフォルダに追加しました`);
+        }
+        
+        spacedItems.clear();
+        document.getElementById("drag-assign-modal").classList.remove("active");
+      });
+      
+      document.getElementById("drag-assign-cancel").addEventListener("click", () => {
+        spacedItems.clear();
+        document.getElementById("drag-assign-modal").classList.remove("active");
+      });
+      
+      document.getElementById("ebbinghaus-auto").addEventListener("change", () => {
+        renderSpacedItemsList();
+        renderEbbinghausPreview();
+      });
+      
+      // Tab2 events
+      document.getElementById("tab2-save").addEventListener("click", saveTab2Result);
+      document.getElementById("tab2-add-folder").addEventListener("click", addFolder);
+      
+      // Initialize values
+      document.getElementById("tab1-title").value = state.tab1.title;
+      document.getElementById("tab2-email").value = state.tab2.email;
+      
+      // Initial render
+      if (!state.tab1.gridData.length) applyTab1();
+      else renderTab1();
+      
+      renderTab2Folders();
+      renderTab2Records();
+      updateChart();
+      renderTab2SendSchedule();
+      window.addEventListener("beforeunload", saveState);
+    }
+    
+    init();
+  </script>
+</body>
+</html>
